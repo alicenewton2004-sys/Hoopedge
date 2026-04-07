@@ -1,2 +1,5 @@
 .env
 *.log
+.DS_Store
+.claude/
+index_backup_light.html
