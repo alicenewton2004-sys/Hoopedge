@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HoopEdge — NBA Prediction Market Arbitrage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a1628;
+    --surface:   #0f2040;
+    --card:      #162a52;
+    --border:    #1e3a6e;
+    --border2:   #2a4d8a;
+    --accent:    #4a9eff;
+    --accent-lt: #0f2a4a;
+    --green:     #22c55e;
+    --green-lt:  #052e16;
+    --red:       #ef4444;
+    --red-lt:    #2d0a0a;
+    --amber:     #f59e0b;
+    --amber-lt:  #2d1a00;
+    --amber-mid: #fbbf24;
+    --text:      #ffffff;
+    --text2:     #e2e8f0;
+    --muted:     #94a3b8;
+    --muted2:    #64748b;
+    --kalshi:    #2dd4bf;
+    --poly:      #a78bfa;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+    --shadow:    0 4px 12px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── NAV ──────────────────────────────────────────────────────────────────── */
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: 56px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .logo {
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+    white-space: nowrap;
+  }
+  .logo span { color: var(--text); }
+
+  /* Pill tab switcher — matches the Figma style */
+  .tab-switcher {
+    display: flex;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    
+    padding: 3px;
+    gap: 2px;
+  }
+  .nav-tab {
+    padding: 0.35rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 500;
+    
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    font-family: 'Inter', sans-serif;
+  }
+  .nav-tab:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+  .nav-tab.active {
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: 0.6rem; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    
+    padding: 0.2rem 0.65rem;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--muted);
+  }
+  .badge.live   { border-color: var(--green); background: var(--green-lt); color: var(--green); }
+  .badge.arb    { border-color: var(--amber-mid); background: var(--amber-lt); color: var(--amber); }
+  .badge .dot   { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 0.4rem 1rem;
+    
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 0.35rem 0.85rem;
+    
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+  }
+  .btn-ghost:hover { border-color: var(--border2); color: var(--text); }
+
+  /* ── LAYOUT ───────────────────────────────────────────────────────────────── */
+  .tab-panel { display: none; padding: 1.75rem 2rem; max-width: 1300px; margin: 0 auto; }
+  .tab-panel.active { display: block; }
+
+  /* ── LABEL STYLE (matches Figma uppercase labels) ─────────────────────────── */
+  .label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted2);
+  }
+
+  /* ── CARDS ────────────────────────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ── STATS BAR ────────────────────────────────────────────────────────────── */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    
+    padding: 1.1rem 1.25rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .stat-card.highlight { border-color: var(--amber-mid); background: var(--card); }
+  .stat-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--text);
+    margin: 0.3rem 0 0.2rem;
+  }
+  .stat-value.green  { color: var(--green); }
+  .stat-value.amber  { color: var(--amber-mid); }
+  .stat-sub { font-size: 0.72rem; color: var(--muted); }
+
+  /* ── BANNER ───────────────────────────────────────────────────────────────── */
+  .banner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .banner.neutral { background: var(--surface); border-color: var(--border); }
+  .banner-icon { font-size: 1.3rem; flex-shrink: 0; }
+  .banner h3 { font-size: 0.9rem; font-weight: 700; color: var(--amber); margin-bottom: 0.15rem; }
+  .banner.neutral h3 { color: var(--text); }
+  .banner p  { font-size: 0.78rem; color: var(--muted); }
+  .banner-actions { margin-left: auto; display: flex; gap: 0.5rem; align-items: center; }
+
+  /* ── ARB CARDS ────────────────────────────────────────────────────────────── */
+  .arb-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.75rem; margin-bottom: 2rem; }
+
+  .arb-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1.25rem;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+  }
+  .arb-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--amber), var(--green));
+  }
+
+  .arb-card-header { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 1rem; }
+  .team-logo-sm { width: 32px; height: 32px; object-fit: contain; }
+  .team-logo-ph {
+    width: 32px; height: 32px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; font-weight: 700; color: var(--muted);
+  }
+  .arb-card-header h3 { font-size: 1rem; font-weight: 700; color: var(--text); }
+  .arb-profit-badge {
+    margin-left: auto;
+    background: var(--green-lt);
+    color: var(--green);
+    border: 1px solid var(--green);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    
+  }
+
+  .arb-trade {
+    background: var(--card);
+    border: 1px solid var(--border);
+    
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.75rem;
+  }
+  .arb-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.82rem;
+  }
+  .arb-row:last-child { margin-bottom: 0; }
+  .plat-label { display: flex; align-items: center; gap: 0.4rem; color: var(--text2); }
+  .dot-k { width: 7px; height: 7px; border-radius: 50%; background: var(--kalshi); flex-shrink: 0; }
+  .dot-p { width: 7px; height: 7px; border-radius: 50%; background: var(--poly);   flex-shrink: 0; }
+  .trade-price { font-weight: 700; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.9rem; color: var(--text); }
+
+  .arb-total {
+    border-top: 1px solid var(--border);
+    padding-top: 0.65rem;
+    margin-top: 0.65rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .total-label  { font-size: 0.75rem; color: var(--muted); }
+  .total-profit { font-size: 1rem; font-weight: 800; color: var(--green); }
+
+  .arb-sizing {
+    background: var(--green-lt);
+    border: 1px solid var(--green);
+    
+    padding: 0.55rem 0.75rem;
+    font-size: 0.76rem;
+    color: var(--green);
+    margin-bottom: 0.75rem;
+  }
+  .arb-sizing strong { font-weight: 700; }
+
+  .arb-links { display: flex; gap: 0.4rem; }
+  .arb-link {
+    flex: 1;
+    text-align: center;
+    padding: 0.45rem;
+    
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid;
+    transition: opacity 0.15s;
+  }
+  .arb-link.k { color: var(--kalshi); border-color: var(--kalshi); background: var(--card); }
+  .arb-link.p { color: var(--poly);   border-color: var(--poly); background: var(--card); }
+  .arb-link:hover { opacity: 0.75; }
+
+  /* ── SECTION HEADER ───────────────────────────────────────────────────────── */
+  .sec-header { display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.75rem; }
+  .sec-header h2 { font-size: 0.95rem; font-weight: 700; color: var(--text); }
+  .sec-count { font-size: 0.75rem; color: var(--muted); }
+
+  /* ── TABLE ────────────────────────────────────────────────────────────────── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 2rem;
+    overflow-x: auto;
+  }
+  table { width: 100%; border-collapse: collapse; min-width: 680px; }
+  thead tr { background: var(--card); }
+  th {
+    padding: 0.65rem 1rem;
+    text-align: left;
+    font-size: 0.67rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    color: var(--muted2);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    font-size: 0.83rem;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--card); }
+  tr.has-arb td { background: var(--card); }
+  tr.has-arb:hover td { background: var(--card); }
+
+  .team-cell { display: flex; align-items: center; gap: 0.55rem; font-weight: 600; color: var(--text); }
+  .logo-xs    { width: 22px; height: 22px; object-fit: contain; }
+  .logo-xs-ph { width: 22px; height: 22px; background: var(--bg); border: 1px solid var(--border); border-radius: 50%; }
+
+  .price-k { color: var(--kalshi); font-weight: 600; font-family: 'SF Mono', monospace; }
+  .price-p { color: var(--poly);   font-weight: 600; font-family: 'SF Mono', monospace; }
+
+  .gap-pos  { color: var(--amber-mid); font-weight: 600; font-size: 0.78rem; }
+  .gap-neg  { color: var(--poly);      font-weight: 600; font-size: 0.78rem; }
+  .gap-zero { color: var(--muted2);    font-size: 0.78rem; }
+
+  .arb-tag {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    background: var(--green-lt); color: var(--green);
+    border: 1px solid var(--green);
+    font-size: 0.67rem; font-weight: 700;
+    padding: 0.15rem 0.5rem;
+     white-space: nowrap;
+  }
+  .no-tag { color: var(--muted2); font-size: 0.75rem; }
+  .rec-tag { font-size: 0.75rem; color: var(--muted); }
+  a.mkt-link { color: var(--accent); text-decoration: none; font-size: 0.75rem; font-weight: 500; }
+  a.mkt-link:hover { text-decoration: underline; }
+
+  /* ── AI PANEL ─────────────────────────────────────────────────────────────── */
+  .ai-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .ai-header {
+    display: flex; align-items: center; gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.8rem; font-weight: 700; color: var(--text);
+  }
+  .ai-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .ai-content { font-size: 0.83rem; line-height: 1.75; color: var(--text2); white-space: pre-wrap; }
+
+  /* ── GAMES ────────────────────────────────────────────────────────────────── */
+  .games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.75rem; }
+  .game-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    
+    padding: 1.1rem 1.25rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .game-teams { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; }
+  .game-team  { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; flex: 1; }
+  .game-team img { width: 36px; height: 36px; object-fit: contain; }
+  .game-team-name { font-size: 0.75rem; font-weight: 600; text-align: center; color: var(--text); }
+  .game-pct { font-size: 1.35rem; font-weight: 800; color: var(--kalshi); }
+  .game-vs  { color: var(--muted2); font-size: 0.75rem; font-weight: 500; }
+  .game-bar { height: 4px; background: var(--bg);  overflow: hidden; margin-bottom: 0.5rem; }
+  .game-bar-fill { height: 100%; background: var(--kalshi);  }
+  .game-meta { font-size: 0.72rem; color: var(--muted); text-align: center; }
+  .game-link { color: var(--accent); text-decoration: none; font-weight: 500; }
+  .game-link:hover { text-decoration: underline; }
+
+  /* ── INFO NOTE ────────────────────────────────────────────────────────────── */
+  .info-note {
+    background: var(--accent-lt);
+    border: 1px solid var(--border);
+    
+    padding: 0.75rem 1rem;
+    font-size: 0.78rem;
+    color: #4a9eff;
+    margin-bottom: 1.25rem;
+  }
+
+  /* ── GUIDE ────────────────────────────────────────────────────────────────── */
+  .guide-layout {
+    display: grid;
+    grid-template-columns: 190px 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+  .guide-nav {
+    position: sticky;
+    top: 72px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    
+    padding: 0.65rem;
+    box-shadow: var(--shadow-sm);
+    min-width: 0;
+    width: 190px;
+  }
+  .guide-nav a {
+    display: block;
+    padding: 0.4rem 0.65rem;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.75rem;
+    
+    margin-bottom: 0.1rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .guide-nav a:hover { background: var(--card); color: var(--text); }
+
+  .guide-content { min-width: 0; }
+
+  .guide-section {
+    margin-bottom: 2.5rem;
+    scroll-margin-top: 80px;
+  }
+  .guide-section h2 {
+    font-size: 1.15rem; font-weight: 800; color: var(--text);
+    margin-bottom: 0.75rem; padding-bottom: 0.65rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .guide-section h3 {
+    font-size: 0.87rem; font-weight: 700; color: var(--accent);
+    margin: 1.25rem 0 0.5rem;
+  }
+  .guide-section p  { font-size: 0.85rem; line-height: 1.75; color: var(--text2); margin-bottom: 0.6rem; }
+  .guide-section ul, .guide-section ol { padding-left: 1.25rem; margin-bottom: 0.6rem; }
+  .guide-section li { font-size: 0.85rem; line-height: 1.75; color: var(--text2); margin-bottom: 0.2rem; }
+
+  /* Arbitrage explainer cards */
+  .arb-explainer {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+  .arb-explainer-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    
+    padding: 1rem;
+    text-align: center;
+  }
+  .arb-explainer-card .ae-icon { font-size: 1.6rem; margin-bottom: 0.4rem; }
+  .arb-explainer-card .ae-title { font-size: 0.8rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; }
+  .arb-explainer-card .ae-body  { font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
+
+  .arb-hero {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .arb-hero-stat {
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .arb-hero-stat .big { font-size: 2rem; font-weight: 800; color: var(--green); font-family: 'SF Mono', monospace; }
+  .arb-hero-stat .lbl { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted2); }
+  .arb-hero-divider { width: 1px; height: 60px; background: var(--border); flex-shrink: 0; }
+  .arb-hero-text { font-size: 0.85rem; line-height: 1.7; color: var(--text2); }
+
+  .info-box {
+    background: var(--accent-lt);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 10px 10px 0;
+    padding: 0.85rem 1rem;
+    margin: 0.75rem 0;
+  }
+  .info-box.warn   { background: var(--amber-lt); border-color: var(--amber-mid); border-left-color: var(--amber-mid); }
+  .info-box.danger { background: var(--red-lt); border-color: var(--red); border-left-color: var(--red); }
+  .info-box p { margin: 0; font-size: 0.83rem; color: var(--text2); }
+
+  .formula-box {
+    background: #111827;
+    border: 1px solid #374151;
+    
+    padding: 1rem 1.25rem;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: #4ade80;
+    margin: 0.75rem 0;
+    line-height: 1.9;
+  }
+
+  .cmp-table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.82rem; }
+  .cmp-table th {
+    background: var(--card); padding: 0.55rem 0.85rem;
+    text-align: left; font-size: 0.67rem;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted2); border-bottom: 1px solid var(--border); font-weight: 600;
+  }
+  .cmp-table td { padding: 0.55rem 0.85rem; border-bottom: 1px solid var(--border); color: var(--text2); }
+  .cmp-table tr:last-child td { border-bottom: none; }
+
+  .steps .step { display: flex; gap: 0.85rem; margin-bottom: 1.25rem; }
+  .step-num {
+    width: 28px; height: 28px;
+    background: var(--accent); color: white;
+    border-radius: 50%; display: flex;
+    align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.78rem; flex-shrink: 0;
+  }
+  .step-content h4 { font-size: 0.88rem; font-weight: 700; margin-bottom: 0.3rem; color: var(--text); }
+  .step-content p  { font-size: 0.82rem; color: var(--muted); margin: 0; }
+
+  /* ── LOADING / ERROR ──────────────────────────────────────────────────────── */
+  .loading { text-align: center; padding: 3rem 2rem; color: var(--muted); }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2.5px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    margin: 0 auto 1rem;
+  }
+  .loading p { font-size: 0.83rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-msg {
+    background: var(--red-lt); border: 1px solid var(--red);
+     padding: 1rem 1.25rem;
+    color: var(--red); font-size: 0.83rem;
+  }
+
+  @media (max-width: 768px) {
+    nav { padding: 0 1rem; gap: 1rem; }
+    .tab-panel { padding: 1rem; }
+    .guide-layout { grid-template-columns: 1fr; }
+    .guide-nav { display: none; }
+    .arb-cards { grid-template-columns: 1fr; }
+    .tab-switcher { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Hoop<span>Edge</span></div>
+  <div class="tab-switcher">
+    <button class="nav-tab active" onclick="switchTab('arb',this)"> Arb Scanner</button>
+    <button class="nav-tab" onclick="switchTab('games',this)"> Tonight's Games</button>
+    <button class="nav-tab" onclick="switchTab('guide',this)"> Guide</button>
+  </div>
+  <div class="nav-right">
+    <span class="badge live"><span class="dot"></span> Live</span>
+    <span class="badge arb" id="arb-pill" style="display:none"></span>
+    <button class="btn-ghost" onclick="loadData()">↻ Refresh</button>
+  </div>
+</nav>
+
+<!-- ── TAB 1: ARB SCANNER ─────────────────────────────────────────────────── -->
+<div id="tab-arb" class="tab-panel active">
+  <div id="arb-loading" class="loading">
+    <div class="spinner"></div>
+    <p>Scanning Kalshi &amp; Polymarket for the same event…</p>
+  </div>
+  <div id="arb-content" style="display:none">
+
+    <div class="stats-bar" id="stats-bar"></div>
+
+    <div class="banner" id="arb-banner">
+      <div class="banner-icon"></div>
+      <div>
+        <h3 id="banner-title">Scanning…</h3>
+        <p id="banner-sub"></p>
+      </div>
+      <div class="banner-actions">
+        <button class="btn-primary" id="ai-trigger" onclick="loadAnalysis()"> AI Analysis</button>
+      </div>
+    </div>
+
+    <div id="arb-cards-section" style="display:none">
+      <div class="sec-header">
+        <h2>Arbitrage Opportunities</h2>
+        <span class="sec-count" id="arb-count-label"></span>
+      </div>
+      <div class="arb-cards" id="arb-cards"></div>
+    </div>
+
+    <div class="ai-panel" id="ai-panel" style="display:none">
+      <div class="ai-header"><div class="ai-dot"></div> AI Market Analysis</div>
+      <div class="ai-content" id="ai-content"></div>
+    </div>
+
+    <div class="sec-header">
+      <h2>Full Championship Comparison</h2>
+      <span class="sec-count" id="table-count-label"></span>
+    </div>
+    <div class="info-note">
+      Both Kalshi and Polymarket offer <strong>"Will [team] win the 2026 NBA Finals?"</strong> — identical event, two prices. The Gap column shows where they disagree.
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Team</th>
+            <th>Record</th>
+            <th style="color:var(--kalshi)">Kalshi (bid – ask)</th>
+            <th style="color:var(--poly)">Polymarket</th>
+            <th>Gap</th>
+            <th>Arb</th>
+            <th>Markets</th>
+          </tr>
+        </thead>
+        <tbody id="futures-tbody"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── TAB 2: TONIGHT'S GAMES ─────────────────────────────────────────────── -->
+<div id="tab-games" class="tab-panel">
+  <div id="games-loading" class="loading">
+    <div class="spinner"></div>
+    <p>Loading tonight's games from Kalshi…</p>
+  </div>
+  <div id="games-content" style="display:none">
+    <div class="info-note" style="margin-bottom:1.25rem">
+      Live game-winner odds from Kalshi. These resolve tonight — separate from the Finals futures which resolve in June.
+    </div>
+    <div class="games-grid" id="games-grid"></div>
+  </div>
+</div>
+
+<!-- ── TAB 3: GUIDE ────────────────────────────────────────────────────────── -->
+<div id="tab-guide" class="tab-panel">
+  <div class="guide-layout">
+    <div class="guide-nav">
+      <div class="label" style="padding:0.45rem 0.75rem; margin-bottom:0.25rem;">Contents</div>
+      <a onclick="gscroll('what-is-arb')">What is arbitrage?</a>
+      <a onclick="gscroll('same-event')">Same-event arb</a>
+      <a onclick="gscroll('how-it-works')">How it works</a>
+      <a onclick="gscroll('platforms')">Kalshi vs Polymarket</a>
+      <a onclick="gscroll('execute')">How to execute</a>
+      <a onclick="gscroll('risks')">Risks &amp; limits</a>
+      <a onclick="gscroll('responsible')">Responsible gambling</a>
+    </div>
+    <div class="guide-content">
+
+      <div class="guide-section" id="what-is-arb">
+        <h2>What is Arbitrage?</h2>
+
+        <div class="arb-hero">
+          <div class="arb-hero-stat">
+            <div class="big">+1.52%</div>
+            <div class="lbl">Guaranteed return</div>
+          </div>
+          <div class="arb-hero-divider"></div>
+          <div class="arb-hero-text">
+            Arbitrage means buying the <strong>same thing</strong> on two markets at different prices — so you profit regardless of the outcome. No prediction needed. No directional risk. One side always pays.
+          </div>
+        </div>
+
+        <div class="arb-explainer">
+          <div class="arb-explainer-card">
+            <div class="ae-icon"></div>
+            <div class="ae-title">Two platforms</div>
+            <div class="ae-body">Kalshi and Polymarket both sell the same NBA Finals contract — but at different prices.</div>
+          </div>
+          <div class="arb-explainer-card">
+            <div class="ae-icon">️</div>
+            <div class="ae-title">Cover both sides</div>
+            <div class="ae-body">Buy YES on the cheaper platform, NO on the other. Together they cost less than $1.</div>
+          </div>
+          <div class="arb-explainer-card">
+            <div class="ae-icon"></div>
+            <div class="ae-title">Collect $1 either way</div>
+            <div class="ae-body">One side always resolves to $1. You spent less — so you always profit.</div>
+          </div>
+        </div>
+
+        <h3>Simple example</h3>
+        <div class="formula-box">Platform A: Heads = 45¢  (implies 45% chance)
+Platform B: Tails = 52¢  (implies 52% chance)
+
+Buy Heads on A:  45¢
+Buy Tails on B:  52¢
+Total cost:      97¢
+
+Heads wins → collect $1 from A → +3¢
+Tails wins → collect $1 from B → +3¢
+Guaranteed profit: +3.1% with zero outcome risk</div>
+
+        <div class="info-box">
+          <p>A genuine arb has <strong>zero directional risk</strong> — you profit whether the team wins or loses. This is fundamentally different from a value bet, which requires your prediction to be correct.</p>
+        </div>
+      </div>
+
+      <div class="guide-section" id="same-event">
+        <h2>The Same-Event Opportunity</h2>
+        <p>Both <strong style="color:var(--kalshi)">Kalshi</strong> and <strong style="color:var(--poly)">Polymarket</strong> offer an identical market: <em>"Will [team] win the 2026 NBA Finals?"</em></p>
+        <p>Because they are separate platforms with different users and different amounts of money, they sometimes disagree on price. When the gap is large enough to cover both sides for less than $1.00, you have a risk-free trade.</p>
+        <h3>Why do prices differ?</h3>
+        <ul>
+          <li><strong>Different liquidity</strong> — Kalshi's bid/ask spread creates gaps Polymarket's tighter prices don't have</li>
+          <li><strong>Different user bases</strong> — different traders with different beliefs</li>
+          <li><strong>Slow price discovery</strong> — news hits one platform before the other</li>
+          <li><strong>Thin markets</strong> — low-probability teams can be wildly mispriced</li>
+        </ul>
+      </div>
+
+      <div class="guide-section" id="how-it-works">
+        <h2>How the Arb Works</h2>
+        <p>Each contract is binary: YES pays $1 if the team wins the Finals, NO pays $1 if they don't.</p>
+        <div class="formula-box">YES price + NO price = $1.00  (always — one side pays $1)
+
+Buy YES on Platform A + Buy NO on Platform B:
+  Team wins  → collect $1 from A, lose NO cost
+  Team loses → collect $1 from B, lose YES cost
+
+Arb condition:  YES_cost + NO_cost &lt; $1.00
+Your profit:    $1.00 − (YES_cost + NO_cost)</div>
+        <h3>Worked example — Denver Nuggets</h3>
+        <div class="formula-box">Kalshi Denver YES ask:   8.0¢   (Kalshi prices Denver at ~7.5%)
+Polymarket Denver YES:   9.5¢   (Polymarket prices them higher)
+Polymarket Denver NO:   90.5¢   (= 1 − 9.5¢)
+
+Trade:
+  Buy YES on Kalshi      @ $0.080
+  Buy NO on Polymarket   @ $0.905
+  Total cost:              $0.985
+
+Denver wins  → $1.00 from Kalshi  → profit $0.015
+Denver loses → $1.00 from Poly    → profit $0.015
+Return: +$0.015 / $0.985 = +1.52% guaranteed</div>
+        <div class="info-box warn">
+          <p><strong>The two positions are completely independent.</strong> Kalshi and Polymarket don't communicate. You hold contracts on both platforms that together pay $1 no matter what happens.</p>
+        </div>
+      </div>
+
+      <div class="guide-section" id="platforms">
+        <h2>Kalshi vs Polymarket</h2>
+        <table class="cmp-table">
+          <thead><tr><th>Feature</th><th style="color:var(--kalshi)">Kalshi</th><th style="color:var(--poly)">Polymarket</th></tr></thead>
+          <tbody>
+            <tr><td>Regulation</td><td>CFTC-regulated (US legal)</td><td>Offshore (not US licensed)</td></tr>
+            <tr><td>Contract</td><td>YES/NO binary, $1 payout</td><td>YES/NO binary, $1 payout</td></tr>
+            <tr><td>Pricing</td><td>Bid/ask spread — you pay the ask</td><td>Single AMM price</td></tr>
+            <tr><td>NBA Finals market</td><td>All 30 teams (KXNBA series)</td><td>~20 teams listed</td></tr>
+            <tr><td>Liquidity</td><td>Moderate; spreads 1–3¢</td><td>Higher; tighter prices</td></tr>
+            <tr><td>Withdrawals</td><td>1–3 business days (bank)</td><td>Instant (crypto)</td></tr>
+          </tbody>
+        </table>
+        <div class="info-box">
+          <p>For US users, <strong>Kalshi is the only fully legal option.</strong> Polymarket is offshore and blocks US IP addresses. Know your jurisdiction before using either platform.</p>
+        </div>
+      </div>
+
+      <div class="guide-section" id="execute">
+        <h2>How to Execute an Arb Trade</h2>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-content"><h4>Spot the opportunity in the Arb Scanner</h4><p>Note the team, which platform gets the YES and which gets the NO, and the guaranteed return %.</p></div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-content"><h4>Fund both accounts in advance</h4><p>You need money ready on both platforms before you spot an arb. Funding takes days — you can't react in time otherwise.</p></div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-content"><h4>Execute both legs simultaneously</h4><p>Open both platforms side by side. Place the YES first, then the NO immediately. Speed is critical — the gap can close in minutes.</p></div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-content"><h4>Verify total cost after execution</h4><p>Confirm YES paid + NO paid &lt; $1.00. If slippage pushed your total over $1.00, the arb has been eliminated.</p></div></div>
+          <div class="step"><div class="step-num">5</div><div class="step-content"><h4>Hold until the Finals resolve</h4><p>NBA Finals end in June. One side collects $1. Do not sell early unless you're actively managing the position.</p></div></div>
+        </div>
+      </div>
+
+      <div class="guide-section" id="risks">
+        <h2>Risks &amp; Limitations</h2>
+        <h3>Slippage</h3>
+        <p>Kalshi's ask price is what you actually pay. If the market moves while you execute, your cost increases. Always use the live ask, not the midpoint.</p>
+        <h3>Liquidity</h3>
+        <p>Low-probability teams have thin Kalshi markets. Large orders fill at worse prices. Keep positions small on these.</p>
+        <h3>Capital lock-up</h3>
+        <p>Your money is locked until the Finals resolve in June, then Kalshi takes 1–3 more business days to withdraw. Plan accordingly.</p>
+        <h3>Platform risk</h3>
+        <p>Either platform could fail or resolve incorrectly. Spread across small positions rather than concentrating everything in one arb.</p>
+        <div class="info-box warn">
+          <p><strong>Rule of thumb:</strong> Only use money you could afford to lose entirely. "Risk-free" means the game outcome won't hurt you — platform risk is real.</p>
+        </div>
+      </div>
+
+      <div class="guide-section" id="responsible">
+        <h2>Responsible Gambling</h2>
+        <div class="info-box danger">
+          <p><strong>Prediction markets are a form of gambling.</strong> Even genuine arbitrage involves platform risk and capital lock-up. Never bet money you cannot afford to lose.</p>
+        </div>
+        <p>If you or someone you know needs help:</p>
+        <ul>
+          <li><strong>National Problem Gambling Helpline:</strong> 1-800-522-4700 (24/7, free)</li>
+          <li><strong>Crisis Text Line:</strong> Text HOME to 741741</li>
+          <li><strong>Gamblers Anonymous:</strong> <a href="https://www.gamblersanonymous.org" target="_blank" style="color:var(--accent)">gamblersanonymous.org</a></li>
+          <li><strong>NCPG:</strong> <a href="https://www.ncpgambling.org" target="_blank" style="color:var(--accent)">ncpgambling.org</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+let allData = null;
+
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function gscroll(id) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderStats(meta) {
+  const arbCount = meta.arb_count || 0;
+  const best     = meta.best_return || 0;
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat-card ${arbCount > 0 ? 'highlight' : ''}">
+      <div class="label">Arb Opportunities</div>
+      <div class="stat-value ${arbCount > 0 ? 'amber' : ''}">${arbCount}</div>
+      <div class="stat-sub">same-event price gaps found</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Best Guaranteed Return</div>
+      <div class="stat-value green">${best > 0 ? '+' + best.toFixed(2) + '%' : '—'}</div>
+      <div class="stat-sub">risk-free if executed cleanly</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Teams Compared</div>
+      <div class="stat-value">${meta.matched_teams || 0}</div>
+      <div class="stat-sub">on both Kalshi &amp; Polymarket</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Games Tonight</div>
+      <div class="stat-value">${meta.games_count || 0}</div>
+      <div class="stat-sub">open Kalshi game markets</div>
+    </div>
+  `;
+  if (arbCount > 0) {
+    const pill = document.getElementById('arb-pill');
+    pill.textContent = `${arbCount} arb op${arbCount !== 1 ? 's' : ''}`;
+    pill.style.display = '';
+  }
+}
+
+function renderBanner(meta) {
+  const count  = meta.arb_count || 0;
+  const best   = meta.best_return || 0;
+  const banner = document.getElementById('arb-banner');
+  const title  = document.getElementById('banner-title');
+  const sub    = document.getElementById('banner-sub');
+  if (count > 0) {
+    banner.classList.remove('neutral');
+    title.textContent = `${count} Arbitrage Opportunit${count > 1 ? 'ies' : 'y'} Detected`;
+    sub.textContent   = `Best guaranteed return: +${best.toFixed(2)}% — buy YES on the cheaper platform, NO on the other for the same Finals market.`;
+  } else {
+    banner.classList.add('neutral');
+    banner.querySelector('.banner-icon').textContent = '';
+    title.textContent = 'No confirmed arb opportunities right now';
+    sub.textContent   = 'Markets are aligned today. Gaps open when news hits one platform before the other — refresh to check again.';
+  }
+}
+
+function renderArbCards(futures) {
+  const arbs    = futures.filter(f => f.has_arb);
+  const section = document.getElementById('arb-cards-section');
+  if (arbs.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  document.getElementById('arb-count-label').textContent = `${arbs.length} found`;
+
+  document.getElementById('arb-cards').innerHTML = arbs.map(f => {
+    const a          = f.arb;
+    const kelly      = Math.round(1000 * Math.min(0.20, a.profit_pct / 100 * 3));
+    const espn       = f.espn;
+    const logoHtml   = espn?.logo
+      ? `<img src="${espn.logo}" class="team-logo-sm" alt="${f.team}">`
+      : `<div class="team-logo-ph">${f.team.slice(0,3).toUpperCase()}</div>`;
+    const yesDotCls  = a.buy_yes_on === 'kalshi' ? 'dot-k' : 'dot-p';
+    const noDotCls   = a.buy_no_on  === 'kalshi' ? 'dot-k' : 'dot-p';
+    const yesPlatNm  = a.buy_yes_on.charAt(0).toUpperCase() + a.buy_yes_on.slice(1);
+    const noPlatNm   = a.buy_no_on .charAt(0).toUpperCase() + a.buy_no_on .slice(1);
+
+    return `
+      <div class="arb-card">
+        <div class="arb-card-header">
+          ${logoHtml}
+          <h3>${f.team}</h3>
+          <span class="arb-profit-badge">+${a.profit_pct.toFixed(2)}% guaranteed</span>
+        </div>
+        <div class="arb-trade">
+          <div class="arb-row">
+            <span class="plat-label"><span class="${yesDotCls}"></span> Buy YES on <strong>${yesPlatNm}</strong></span>
+            <span class="trade-price">$${a.yes_price.toFixed(3)}</span>
+          </div>
+          <div class="arb-row">
+            <span class="plat-label"><span class="${noDotCls}"></span> Buy NO on <strong>${noPlatNm}</strong></span>
+            <span class="trade-price">$${a.no_price.toFixed(3)}</span>
+          </div>
+          <div class="arb-total">
+            <span class="total-label">Total cost</span>
+            <span class="total-profit">$${a.cost.toFixed(3)} → +${a.profit_pct.toFixed(2)}%</span>
+          </div>
+        </div>
+        <div class="arb-sizing">
+          $1,000 bankroll → <strong>~$${kelly} position</strong> → ~$${(kelly * a.profit_pct / 100).toFixed(2)} locked profit
+        </div>
+        <div class="arb-links">
+          ${f.k_url ? `<a href="${f.k_url}" target="_blank" class="arb-link k">↗ Kalshi</a>` : ''}
+          ${f.p_url ? `<a href="${f.p_url}" target="_blank" class="arb-link p">↗ Polymarket</a>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderTable(futures) {
+  document.getElementById('table-count-label').textContent = `${futures.length} teams on both platforms`;
+  document.getElementById('futures-tbody').innerHTML = futures.map(f => {
+    const espn     = f.espn;
+    const logoHtml = espn?.logo
+      ? `<img src="${espn.logo}" class="logo-xs" alt="${f.team}">`
+      : `<div class="logo-xs-ph"></div>`;
+    const gap = f.price_gap;
+    let gapClass = 'gap-zero', gapStr = '≈ flat';
+    if (gap > 0.5)  { gapClass = 'gap-pos'; gapStr = `Kalshi +${gap.toFixed(1)}pp`; }
+    if (gap < -0.5) { gapClass = 'gap-neg'; gapStr = `Poly +${Math.abs(gap).toFixed(1)}pp`; }
+    let arbHtml = `<span class="no-tag">—</span>`;
+    if (f.has_arb) {
+      const a = f.arb;
+      arbHtml = `<span class="arb-tag">+${a.profit_pct.toFixed(2)}% · YES ${a.buy_yes_on === 'kalshi' ? 'K' : 'P'} + NO ${a.buy_no_on === 'kalshi' ? 'K' : 'P'}</span>`;
+    }
+    return `
+      <tr class="${f.has_arb ? 'has-arb' : ''}">
+        <td><div class="team-cell">${logoHtml} ${f.team}</div></td>
+        <td><span class="rec-tag">${espn?.record || '—'}</span></td>
+        <td><span class="price-k">${f.k_bid}–${f.k_ask}¢</span></td>
+        <td><span class="price-p">${f.p_yes}¢</span></td>
+        <td><span class="${gapClass}">${gapStr}</span></td>
+        <td>${arbHtml}</td>
+        <td>
+          ${f.k_url ? `<a href="${f.k_url}" target="_blank" class="mkt-link">Kalshi</a>` : ''}
+          ${f.k_url && f.p_url ? ' · ' : ''}
+          ${f.p_url ? `<a href="${f.p_url}" target="_blank" class="mkt-link">Poly</a>` : ''}
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function renderGames(games) {
+  const container = document.getElementById('games-grid');
+  if (!games || games.length === 0) {
+    container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem">No game markets open right now.</p>';
+    return;
+  }
+  container.innerHTML = games.map(g => {
+    const logoA = g.espn_a?.logo ? `<img src="${g.espn_a.logo}" width="36" height="36" style="object-fit:contain">` : '';
+    const logoB = g.espn_b?.logo ? `<img src="${g.espn_b.logo}" width="36" height="36" style="object-fit:contain">` : '';
+    const fill  = Math.max(5, Math.min(95, g.pct_a));
+    const close = g.close_time ? new Date(g.close_time).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+    return `
+      <div class="game-card">
+        <div class="game-teams">
+          <div class="game-team">${logoA}<div class="game-team-name">${g.team_a}</div><div class="game-pct">${g.pct_a}%</div></div>
+          <div class="game-vs">vs</div>
+          <div class="game-team">${logoB}<div class="game-team-name">${g.team_b}</div><div class="game-pct">${g.pct_b}%</div></div>
+        </div>
+        <div class="game-bar"><div class="game-bar-fill" style="width:${fill}%"></div></div>
+        <div class="game-meta">${close ? `Closes ${close} · ` : ''}<a href="${g.url_a}" target="_blank" class="game-link">View on Kalshi →</a></div>
+      </div>`;
+  }).join('');
+}
+
+async function loadData() {
+  ['arb','games'].forEach(t => {
+    document.getElementById(`${t}-loading`).style.display = '';
+    document.getElementById(`${t}-content`).style.display = 'none';
+  });
+  document.getElementById('ai-panel').style.display = 'none';
+
+  try {
+    const r    = await fetch('/api/markets');
+    const data = await r.json();
+    allData    = data;
+    const { futures, games, meta } = data;
+
+    renderStats(meta);
+    renderBanner(meta);
+    renderArbCards(futures);
+    renderTable(futures);
+    renderGames(games);
+
+    ['arb','games'].forEach(t => {
+      document.getElementById(`${t}-loading`).style.display = 'none';
+      document.getElementById(`${t}-content`).style.display = '';
+    });
+  } catch (err) {
+    document.getElementById('arb-loading').innerHTML =
+      `<div class="error-msg">Failed to load: ${err.message}<br>Make sure the server is running on port 8080.</div>`;
+  }
+}
+
+async function loadAnalysis() {
+  if (!allData) return;
+  const btn = document.getElementById('ai-trigger');
+  btn.disabled = true;
+  btn.textContent = ' Analysing…';
+  try {
+    const r = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ futures: allData.futures, games: allData.games }),
+    });
+    const data = await r.json();
+    const panel = document.getElementById('ai-panel');
+    document.getElementById('ai-content').textContent = data.analysis || data.error || 'No analysis returned.';
+    panel.style.display = '';
+    panel.scrollIntoView({ behavior: 'smooth' });
+  } catch (e) {
+    document.getElementById('ai-content').textContent = 'Analysis failed: ' + e.message;
+    document.getElementById('ai-panel').style.display = '';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = ' AI Analysis';
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
